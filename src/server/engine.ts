@@ -128,6 +128,7 @@ export function createGame(input: CreateGameInput): {
     hostDisconnectedAt: null,
     processedKeys: new Set(),
     emailStatus: "none",
+    nextRevealAt: null,
   };
 
   store.games.set(id, game);
@@ -339,21 +340,20 @@ function maybeCompleteReady(game: Game): void {
   if (game.players.every((p) => round.ready[p.id])) {
     round.result = evaluateRound(game);
     game.phase = "READY_TO_REVEAL";
-    // The reveal now runs automatically, one step every few seconds.
-    scheduleAutoReveal(game.id, FIRST_REVEAL_MS);
+    // Schedule the first reveal step; clients advance it via poll/tick.
+    game.nextRevealAt = Date.now() + FIRST_REVEAL_MS;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Automatic reveal driver (server-side timers).
-// In this in-memory MVP the whole app is one Node process, so setTimeout is a
-// fine scheduler. A production deploy would use a durable scheduler instead.
+// Automatic reveal driver (timestamp + poll).
+// setTimeout is unreliable on serverless (Vercel). Instead we store
+// `nextRevealAt` on the game and advance whenever any client loads state.
 // ---------------------------------------------------------------------------
 const FIRST_REVEAL_MS = 2000;
 const STEP_REVEAL_MS = 5000;
 // Players get longer to study the freshly revealed private cards + equity.
 const ASSIGNMENTS_REVEAL_MS = 10000;
-const autoTimers = new Map<string, NodeJS.Timeout>();
 
 /** How long we linger on a step before advancing to the next one. */
 function stepDurationMs(step: string | null): number {
@@ -364,26 +364,45 @@ function stepDurationMs(step: string | null): number {
   return STEP_REVEAL_MS;
 }
 
-function scheduleAutoReveal(gameId: string, delayMs: number): void {
-  const existing = autoTimers.get(gameId);
-  if (existing) clearTimeout(existing);
-  const t = setTimeout(() => {
-    autoTimers.delete(gameId);
-    const store = getStore();
-    const game = store.games.get(gameId);
-    if (!game) return;
-    if (game.phase !== "READY_TO_REVEAL" && game.phase !== "REVEALING") return;
+/**
+ * Advance any due auto-reveal steps. Safe to call on every state poll.
+ * Returns true if the game was mutated.
+ */
+export function tickAutoReveal(game: Game): boolean {
+  if (game.phase !== "READY_TO_REVEAL" && game.phase !== "REVEALING") {
+    if (game.nextRevealAt != null) game.nextRevealAt = null;
+    return false;
+  }
+  // Recover games stuck from the old in-process setTimeout driver (Vercel).
+  if (game.nextRevealAt == null) {
+    game.nextRevealAt = Date.now();
+  }
+  if (Date.now() < game.nextRevealAt) return false;
+
+  let changed = false;
+  let guard = 0;
+  while (
+    game.nextRevealAt != null &&
+    Date.now() >= game.nextRevealAt &&
+    (game.phase === "READY_TO_REVEAL" || game.phase === "REVEALING") &&
+    guard++ < 20
+  ) {
     try {
       applyReveal(game);
       game.version++;
+      changed = true;
     } catch (err) {
       console.error("auto-reveal failed", err);
-      return;
+      game.nextRevealAt = null;
+      break;
     }
-    if (game.phase === "REVEALING") scheduleAutoReveal(gameId, stepDurationMs(game.round?.revealStep ?? null));
-  }, delayMs);
-  if (typeof t.unref === "function") t.unref();
-  autoTimers.set(gameId, t);
+    if (game.phase === "REVEALING") {
+      game.nextRevealAt = Date.now() + stepDurationMs(game.round?.revealStep ?? null);
+    } else {
+      game.nextRevealAt = null;
+    }
+  }
+  return changed;
 }
 
 function boardOfStep(step: string): BoardId | null {
@@ -521,6 +540,11 @@ export function revealNext(token: string, idempotencyKey?: string): Game {
     () => {
       applyReveal(game);
       game.version++;
+      if (game.phase === "REVEALING") {
+        game.nextRevealAt = Date.now() + stepDurationMs(game.round?.revealStep ?? null);
+      } else {
+        game.nextRevealAt = null;
+      }
       return game;
     }
   );
@@ -612,7 +636,9 @@ export function heartbeat(token: string): Game {
 }
 
 export function getGameByToken(token: string): { game: Game; player: ServerPlayer } {
-  return requireSession(token);
+  const session = requireSession(token);
+  tickAutoReveal(session.game);
+  return session;
 }
 
 export function requireGameById(gameId: string): Game {

@@ -75,6 +75,11 @@ export interface Game {
   processedKeys: Set<string>;
   /** Records of final-score email attempts. */
   emailStatus: "none" | "pending" | "sent" | "failed";
+  /**
+   * When the next auto-reveal step should fire (epoch ms). Driven by poll/tick
+   * rather than process timers so it works on multi-instance hosts (Vercel).
+   */
+  nextRevealAt: number | null;
 }
 
 export type { Card, BoardId, Assignment, GamePhase, RevealStep };
