@@ -29,14 +29,16 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
   const step = round.revealStep;
   const isSweepStep = !frozen && step === "SWEEP_EVAL";
   const isResultStep = !frozen && !!step && step.endsWith("RESULT");
-  const activeBoard = frozen ? "bottom" : boardOfStep(step) ?? "bottom";
+  // No board is "active" until the first reveal step lands — don't flash BTM
+  // during READY_TO_REVEAL while revealStep is still null.
+  const activeBoard: BoardId | null = frozen ? "bottom" : boardOfStep(step);
   const byId = Object.fromEntries(round.boards.map((b) => [b.boardId, b])) as Record<BoardId, BoardView>;
-  const active = byId[activeBoard]!;
-  const activeResult = active.result;
+  const active = activeBoard ? byId[activeBoard]! : null;
+  const activeResult = active?.result ?? null;
   const sweep = round.sweep;
   const sweepApplied = isSweepStep && !!sweep?.applied;
   // High-hand callout fires on the board RESULT step (after river), before payouts.
-  const highHandPending = !frozen && isResultStep && !!active.highHand;
+  const highHandPending = !frozen && isResultStep && !!active?.highHand;
 
   // Banner-first, then payouts — same pattern for high hand and sweep.
   const [highHandPaid, setHighHandPaid] = useState(false);
@@ -89,7 +91,7 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
   const seatVariant = (pid: string): SeatVariant =>
     payoutsReady && activeResult && activeResult.winners.includes(pid) ? "winner" : "idle";
 
-  const seatEquity = (pid: string) => active.equity?.[pid] ?? null;
+  const seatEquity = (pid: string) => active?.equity?.[pid] ?? null;
 
   const seatDelta = (pid: string) => {
     if (!payoutsReady) return null;
@@ -98,7 +100,7 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
     return null;
   };
   const seatDeltaKey = (pid: string) =>
-    sweepPaid ? `sweep-${pid}` : `${activeBoard}-result-${pid}`;
+    sweepPaid ? `sweep-${pid}` : `${activeBoard ?? "none"}-result-${pid}`;
 
   // Hand names appear with the payout (not under the high-hand banner).
   const seatHandName = (pid: string) =>
@@ -106,8 +108,9 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
       ? activeResult.hands.find((h) => h.playerId === pid)?.handName
       : undefined;
 
-  // Each player's 4 cards for the active board, once the assignments are revealed.
+  // Each player's 4 cards for the active board, once that board's reveal has started.
   const seatCards = (pid: string) => {
+    if (!active || !activeBoard) return null;
     const cards = active.assignments[pid];
     if (!cards || cards.length === 0) return null;
     const used =
