@@ -5,11 +5,8 @@
  * ever *requests* actions; this module authorizes, validates, applies, and
  * persists them. It composes the pure core (deck/deal/evaluator/scoring/round).
  *
- * Storage: an in-memory store (persisted on globalThis so it survives Next.js
- * dev hot-reloads) so the vertical slice runs with zero external services. The
- * `Store` seam is intentionally small so it can be swapped for a Supabase /
- * Postgres transactional repository (see docs/ARCHITECTURE.md) without touching
- * the rules.
+ * Storage: in-memory locally; on Vercel, `withDurableStore` (Redis/Upstash)
+ * shares rooms and sessions across serverless instances. See durableStore.ts.
  */
 
 import { randomUUID, randomBytes } from "node:crypto";
@@ -23,6 +20,7 @@ import type { PlayerBoardHand } from "@/core/scoring";
 import { computeEquity } from "./equity";
 import { nextPhase, nextRevealStep, REVEAL_SEQUENCE } from "@/core/stateMachine";
 import type { Game, RoundState, ServerPlayer } from "./types";
+import { getStore, type Store } from "./durableStore";
 
 export class GameError extends Error {
   constructor(
@@ -33,23 +31,7 @@ export class GameError extends Error {
   }
 }
 
-interface Store {
-  games: Map<string, Game>;
-  codeIndex: Map<string, string>; // code -> gameId
-  sessions: Map<string, { gameId: string; playerId: string }>; // token -> ref
-}
-
-function getStore(): Store {
-  const g = globalThis as unknown as { __triplePloStore?: Store };
-  if (!g.__triplePloStore) {
-    g.__triplePloStore = {
-      games: new Map(),
-      codeIndex: new Map(),
-      sessions: new Map(),
-    };
-  }
-  return g.__triplePloStore;
-}
+export { withDurableStore, redisConfigured } from "./durableStore";
 
 const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
 

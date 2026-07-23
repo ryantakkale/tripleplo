@@ -12,7 +12,9 @@ export function fail(error: unknown): NextResponse {
         ? 403
         : error.code === "NOT_FOUND" || error.code === "INVALID_ROOM"
           ? 404
-          : 400;
+          : error.code === "CONFIG"
+            ? 503
+            : 400;
     return NextResponse.json({ ok: false, code: error.code, message: error.message }, { status });
   }
   if (error && typeof error === "object" && "issues" in error) {
