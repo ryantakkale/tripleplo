@@ -1,0 +1,17 @@
+import { readSessionToken } from "@/lib/session";
+import { getGameByToken } from "@/server/engine";
+import { buildView } from "@/server/views";
+import { ok, fail } from "@/lib/http";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const token = readSessionToken(params.id);
+    if (!token) return ok({ view: null, unauthenticated: true });
+    const { game, player } = getGameByToken(token);
+    return ok({ view: buildView(game, player.id) });
+  } catch (e) {
+    return fail(e);
+  }
+}
