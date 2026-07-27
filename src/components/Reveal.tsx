@@ -161,11 +161,26 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
     </div>
   );
 
+  const banner = showSweepBanner ? (
+    <div className="animate-sweepPop rounded-3xl bg-black/70 px-10 py-6 text-center shadow-2xl ring-1 ring-white/10 backdrop-blur-sm">
+      <div className="sweep-text text-4xl font-black uppercase tracking-tight sm:text-6xl">
+        {nameOf(sweep!.winner ?? "")} sweeps
+      </div>
+    </div>
+  ) : showHighHandBanner ? (
+    <div className="animate-sweepPop rounded-3xl bg-black/70 px-10 py-6 text-center shadow-2xl ring-1 ring-white/10 backdrop-blur-sm">
+      <div className="sweep-text text-4xl font-black uppercase tracking-tight sm:text-6xl">
+        High Hand
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div className="relative">
+    <div className="relative flex h-full min-h-0 flex-col">
       <PokerTable
         view={view}
         center={center}
+        overlay={banner}
         seatVariant={seatVariant}
         seatEquity={seatEquity}
         seatDelta={seatDelta}
@@ -175,26 +190,6 @@ export function Reveal({ view }: { view: GameView; isHost?: boolean; onUpdate?: 
         seatCards={seatCards}
         potLabel={`$${(view.boardValueCents / 100).toFixed(2)} per board`}
       />
-
-      {showSweepBanner && (
-        <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center">
-          <div className="animate-sweepPop rounded-3xl bg-black/70 px-10 py-6 text-center shadow-2xl ring-1 ring-white/10 backdrop-blur-sm">
-            <div className="sweep-text text-4xl font-black uppercase tracking-tight sm:text-6xl">
-              {nameOf(sweep!.winner ?? "")} sweeps
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showHighHandBanner && (
-        <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center">
-          <div className="animate-sweepPop rounded-3xl bg-black/70 px-10 py-6 text-center shadow-2xl ring-1 ring-white/10 backdrop-blur-sm">
-            <div className="sweep-text text-4xl font-black uppercase tracking-tight sm:text-6xl">
-              High Hand
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import { TextField } from "@/components/TextField";
+import { AvatarPicker } from "@/components/AvatarPicker";
+import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
 
 export default function CreatePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarId, setAvatarId] = useState<AvatarId>(DEFAULT_AVATAR_ID);
   const [playerCount, setPlayerCount] = useState<2 | 3>(2);
   const [value, setValue] = useState<1 | 2 | 4>(1);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +28,7 @@ export default function CreatePage() {
         hostEmail: email,
         playerCount,
         boardValueDollars: value,
+        avatarId,
       });
       router.push(`/game/${gameId}`);
     } catch (err) {
@@ -35,7 +39,6 @@ export default function CreatePage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-12">
-      {/* Single padded column: Back, title, labels, fields, and buttons share one left edge. */}
       <Link href="/" className="mb-6 text-sm text-muted hover:text-ink">
         ← Back
       </Link>
@@ -51,6 +54,7 @@ export default function CreatePage() {
           maxLength={24}
           required
         />
+        <AvatarPicker value={avatarId} onChange={setAvatarId} />
         <TextField
           label="Your email"
           type="email"

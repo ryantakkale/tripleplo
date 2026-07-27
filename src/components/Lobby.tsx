@@ -68,10 +68,19 @@ export function Lobby({
               >
                 {p ? (
                   <>
-                    <span className="font-medium">
-                      {p.displayName} {p.isYou && <span className="text-accent">(you)</span>}
+                    <span className="flex min-w-0 items-center gap-2.5 font-medium">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/avatars/${p.avatarId || "Default"}.png`}
+                        alt=""
+                        className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/15"
+                        draggable={false}
+                      />
+                      <span className="truncate">
+                        {p.displayName} {p.isYou && <span className="text-accent">(you)</span>}
+                      </span>
                     </span>
-                    {p.isHost && <span className="text-xs text-accent">HOST</span>}
+                    {p.isHost && <span className="shrink-0 text-xs text-accent">HOST</span>}
                   </>
                 ) : (
                   <span className="text-muted">Waiting for player…</span>

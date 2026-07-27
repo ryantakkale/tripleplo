@@ -10,8 +10,14 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     try {
       const token = readSessionToken(params.id);
       if (!token) return ok({ view: null, unauthenticated: true });
-      const { game, player } = getGameByToken(token);
-      return ok({ view: buildView(game, player.id) });
+      const { game, player, spectator, isSpectator } = getGameByToken(token);
+      return ok({
+        view: buildView(
+          game,
+          player?.id ?? null,
+          isSpectator ? spectator?.id ?? null : null
+        ),
+      });
     } catch (e) {
       return fail(e);
     }

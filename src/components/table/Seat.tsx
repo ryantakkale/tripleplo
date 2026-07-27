@@ -2,6 +2,7 @@
 
 import type { PlayerView } from "@/server/views";
 import { fmt } from "@/lib/client";
+import { SeatSpeechBubble } from "@/components/GameChat";
 
 export interface SeatData extends PlayerView {}
 
@@ -24,7 +25,7 @@ const VARIANT_CLASS: Record<SeatVariant, string> = {
  * Card / equity rows are reserved at a fixed height so the table never grows
  * when private cards or percentages appear. Hand names sit flush against the
  * box (above for opponents, below for you), centered, and may extend past the
- * box width.
+ * box width. Felt padding keeps them off the rail.
  *
  * `cardsBelow` places the revealed cards below the box (for opponents seated
  * at the top of the felt) rather than above it (for the local player).
@@ -38,6 +39,7 @@ export function Seat({
   deltaKey,
   handName,
   cardsBelow = false,
+  chatSide = "right",
   children,
 }: {
   player: SeatData;
@@ -48,9 +50,12 @@ export function Seat({
   deltaKey?: string | number;
   handName?: string;
   cardsBelow?: boolean;
+  /** Which side to park the bubble when cards are showing. */
+  chatSide?: "left" | "right";
   children?: React.ReactNode; // revealed cards for the active board
 }) {
-  const initial = player.displayName.trim().charAt(0).toUpperCase() || "?";
+  const hasCards = Boolean(children);
+  const chatPlacement = hasCards ? chatSide : cardsBelow ? "below" : "above";
 
   // Fixed-height slots so arrange → reveal never resizes the felt.
   // pointer-events-none when empty so the reserved space never steals drags
@@ -88,11 +93,18 @@ export function Seat({
   const pillEl = (
     <div className="relative w-full">
       {handNameEl}
+      <SeatSpeechBubble playerId={player.id} placement={chatPlacement} />
       <div
         className={`relative flex w-full items-center gap-2 rounded-2xl px-3 py-2 backdrop-blur transition-colors ${VARIANT_CLASS[variant]}`}
       >
         <div className="relative shrink-0">
-          <div className="seat-avatar h-9 w-9 text-sm">{initial}</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/avatars/${player.avatarId || "Default"}.png`}
+            alt=""
+            className="seat-avatar h-9 w-9 object-cover"
+            draggable={false}
+          />
           <span
             className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-felt-900 ${
               player.connected ? "bg-emerald-400" : "bg-red-400"

@@ -17,12 +17,24 @@ export interface ServerPlayer {
   seat: number;
   displayName: string;
   isHost: boolean;
+  /** Profile avatar id (see src/lib/avatars.ts). */
+  avatarId?: string;
   /** Practice-mode CPU opponent. Auto-arranges and auto-readies server-side. */
   isBot?: boolean;
   /** Secret. Never leaves the server except back to the owning session as a cookie. */
   sessionToken: string;
   /** Host only. Secret; never exposed to other players. */
   email?: string;
+  connected: boolean;
+  lastSeenAt: number;
+}
+
+/** Named watcher — no seat, can chat, joins only after the game has started. */
+export interface Spectator {
+  id: string;
+  displayName: string;
+  avatarId?: string;
+  sessionToken: string;
   connected: boolean;
   lastSeenAt: number;
 }
@@ -66,6 +78,8 @@ export interface Game {
   completedRounds: number;
   cumulative: Record<string, number>;
   stats: GameStats;
+  /** True for practice-vs-CPU rooms (bots fill empty seats). */
+  practice?: boolean;
   createdAt: number;
   endedAt: number | null;
   /** Phase to resume to after a host reconnection. */
@@ -80,6 +94,22 @@ export interface Game {
    * rather than process timers so it works on multi-instance hosts (Vercel).
    */
   nextRevealAt: number | null;
+  /** In-room chat (table talk). Kept for the life of the game. */
+  chat: ChatMessage[];
+  /** Bumped on every chat post so clients can poll without a game-state change. */
+  chatRevision: number;
+  /** Named watchers (no seat). */
+  spectators: Spectator[];
+}
+
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  displayName: string;
+  text: string;
+  createdAt: number;
+  /** True when the author is a spectator. */
+  isSpectator?: boolean;
 }
 
 export type { Card, BoardId, Assignment, GamePhase, RevealStep };

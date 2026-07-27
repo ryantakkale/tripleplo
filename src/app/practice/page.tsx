@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/client";
 import { TextField } from "@/components/TextField";
+import { AvatarPicker } from "@/components/AvatarPicker";
+import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
 
 export default function PracticePage() {
   const router = useRouter();
   const [name, setName] = useState("You");
+  const [avatarId, setAvatarId] = useState<AvatarId>(DEFAULT_AVATAR_ID);
   const [playerCount, setPlayerCount] = useState<2 | 3>(2);
   const [value, setValue] = useState<1 | 2 | 4>(1);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +26,7 @@ export default function PracticePage() {
         hostDisplayName: name,
         playerCount,
         boardValueDollars: value,
+        avatarId,
       });
       router.push(`/game/${gameId}`);
     } catch (err) {
@@ -47,6 +51,7 @@ export default function PracticePage() {
           maxLength={24}
           required
         />
+        <AvatarPicker value={avatarId} onChange={setAvatarId} />
 
         <div className="flex w-full flex-col gap-1.5">
           <div className="label mb-0">Players</div>

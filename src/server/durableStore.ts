@@ -17,14 +17,20 @@ import type { Game } from "./types";
 export interface Store {
   games: Map<string, Game>;
   codeIndex: Map<string, string>;
-  sessions: Map<string, { gameId: string; playerId: string }>;
+  sessions: Map<string, SessionRef>;
 }
+
+export type SessionRef = {
+  gameId: string;
+  playerId?: string;
+  spectatorId?: string;
+};
 
 type WireGame = Omit<Game, "processedKeys"> & { processedKeys: string[] };
 type WireStore = {
   games: Record<string, WireGame>;
   codeIndex: Record<string, string>;
-  sessions: Record<string, { gameId: string; playerId: string }>;
+  sessions: Record<string, SessionRef>;
 };
 
 const STORE_KEY = "tpl:v1:store";
@@ -89,6 +95,10 @@ function fromWire(wire: WireStore | null): Store {
     store.games.set(id, {
       ...g,
       processedKeys: new Set(g.processedKeys ?? []),
+      chat: g.chat ?? [],
+      chatRevision: g.chatRevision ?? 0,
+      nextRevealAt: g.nextRevealAt ?? null,
+      spectators: g.spectators ?? [],
     });
   }
   for (const [code, gameId] of Object.entries(wire.codeIndex ?? {})) {

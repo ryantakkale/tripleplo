@@ -8,7 +8,7 @@ import { TextField } from "@/components/TextField";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { DEFAULT_AVATAR_ID, type AvatarId } from "@/lib/avatars";
 
-function JoinForm() {
+function SpectateForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [code, setCode] = useState(params.get("code") ?? "");
@@ -22,7 +22,7 @@ function JoinForm() {
     setError(null);
     setBusy(true);
     try {
-      const { gameId } = await api.joinGame({
+      const { gameId } = await api.spectateGame({
         code: code.toUpperCase(),
         displayName: name,
         avatarId,
@@ -40,7 +40,10 @@ function JoinForm() {
         ← Back
       </Link>
 
-      <h1 className="text-3xl font-bold leading-tight">Join Game</h1>
+      <h1 className="text-3xl font-bold leading-tight">Spectate</h1>
+      <p className="mt-2 text-sm text-muted">
+        Watch and chat once the game has started. You won&rsquo;t take a seat.
+      </p>
 
       <form onSubmit={submit} className="mt-6 flex w-full flex-col gap-5">
         <TextField
@@ -65,27 +68,24 @@ function JoinForm() {
         {error && <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
 
         <button type="submit" className="btn-primary w-full text-lg" disabled={busy}>
-          {busy ? "Joining…" : "Join Game"}
+          {busy ? "Joining…" : "Spectate"}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">
-        Game already going?{" "}
-        <Link
-          href={`/spectate${code ? `?code=${encodeURIComponent(code)}` : ""}`}
-          className="text-accent hover:underline"
-        >
-          Spectate instead
+        Want a seat instead?{" "}
+        <Link href="/join" className="text-accent hover:underline">
+          Join as a player
         </Link>
       </p>
     </main>
   );
 }
 
-export default function JoinPage() {
+export default function SpectatePage() {
   return (
     <Suspense fallback={null}>
-      <JoinForm />
+      <SpectateForm />
     </Suspense>
   );
 }

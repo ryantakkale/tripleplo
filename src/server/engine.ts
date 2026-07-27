@@ -19,8 +19,9 @@ import { scoreRound, type RoundBoardInput } from "@/core/round";
 import type { PlayerBoardHand } from "@/core/scoring";
 import { computeEquity } from "./equity";
 import { nextPhase, nextRevealStep, REVEAL_SEQUENCE } from "@/core/stateMachine";
-import type { Game, RoundState, ServerPlayer } from "./types";
+import type { Game, RoundState, ServerPlayer, Spectator } from "./types";
 import { getStore, type Store } from "./durableStore";
+import { DEFAULT_AVATAR_ID, normalizeAvatarId } from "@/lib/avatars";
 
 export class GameError extends Error {
   constructor(
@@ -55,16 +56,60 @@ function emptyRecord(players: ServerPlayer[]): Record<string, number> {
   return r;
 }
 
-/** Resolves and authorizes a session against a game. */
+/** Resolves and authorizes a seated-player session against a game. */
 export function requireSession(token: string): { game: Game; player: ServerPlayer } {
   const store = getStore();
   const ref = store.sessions.get(token);
-  if (!ref) throw new GameError("AUTH", "Invalid or missing session");
+  if (!ref?.playerId) throw new GameError("AUTH", "Invalid or missing session");
   const game = store.games.get(ref.gameId);
   if (!game) throw new GameError("NOT_FOUND", "Game not found");
   const player = game.players.find((p) => p.id === ref.playerId);
   if (!player) throw new GameError("AUTH", "Player not in game");
   return { game, player };
+}
+
+/** Player or spectator session (state polling + chat). */
+export function requireActor(token: string): {
+  game: Game;
+  player: ServerPlayer | null;
+  spectator: Spectator | null;
+  actorId: string;
+  displayName: string;
+  isSpectator: boolean;
+} {
+  const store = getStore();
+  const ref = store.sessions.get(token);
+  if (!ref) throw new GameError("AUTH", "Invalid or missing session");
+  const game = store.games.get(ref.gameId);
+  if (!game) throw new GameError("NOT_FOUND", "Game not found");
+
+  if (ref.playerId) {
+    const player = game.players.find((p) => p.id === ref.playerId);
+    if (!player) throw new GameError("AUTH", "Player not in game");
+    return {
+      game,
+      player,
+      spectator: null,
+      actorId: player.id,
+      displayName: player.displayName,
+      isSpectator: false,
+    };
+  }
+
+  if (ref.spectatorId) {
+    const spectator = (game.spectators ?? []).find((s) => s.id === ref.spectatorId);
+    if (!spectator) throw new GameError("AUTH", "Spectator not in game");
+    return {
+      game,
+      player: null,
+      spectator,
+      actorId: spectator.id,
+      displayName: spectator.displayName,
+      isSpectator: true,
+    };
+  }
+
+  throw new GameError("AUTH", "Invalid or missing session");
 }
 
 function idempotent<T>(game: Game, key: string | undefined, current: () => T, run: () => T): T {
@@ -79,6 +124,7 @@ export interface CreateGameInput {
   hostEmail: string;
   playerCount: 2 | 3;
   boardValueCents: number;
+  avatarId?: string;
 }
 
 export function createGame(input: CreateGameInput): {
@@ -97,6 +143,7 @@ export function createGame(input: CreateGameInput): {
     seat: 0,
     displayName: input.hostDisplayName.trim(),
     isHost: true,
+    avatarId: normalizeAvatarId(input.avatarId),
     sessionToken,
     email: input.hostEmail.trim(),
     connected: true,
@@ -129,6 +176,9 @@ export function createGame(input: CreateGameInput): {
     processedKeys: new Set(),
     emailStatus: "none",
     nextRevealAt: null,
+    chat: [],
+    chatRevision: 0,
+    spectators: [],
   };
 
   store.games.set(id, game);
@@ -141,6 +191,7 @@ export interface CreatePracticeInput {
   hostDisplayName: string;
   playerCount: 2 | 3;
   boardValueCents: number;
+  avatarId?: string;
 }
 
 /**
@@ -159,6 +210,7 @@ export function createPracticeGame(input: CreatePracticeInput): {
     hostEmail: `practice+${randomUUID().slice(0, 8)}@example.com`,
     playerCount: input.playerCount,
     boardValueCents: input.boardValueCents,
+    avatarId: input.avatarId,
   });
   const game = created.game;
 
@@ -170,6 +222,7 @@ export function createPracticeGame(input: CreatePracticeInput): {
       displayName: `CPU ${i}`,
       isHost: false,
       isBot: true,
+      avatarId: DEFAULT_AVATAR_ID,
       sessionToken: newToken(), // never used, bots are server-driven
       connected: true,
       lastSeenAt: Date.now(),
@@ -177,13 +230,18 @@ export function createPracticeGame(input: CreatePracticeInput): {
     game.cumulative[botId] = 0;
   }
   game.phase = "READY_TO_START";
+  game.practice = true;
   game.version++;
 
   void store; // store already holds the game via createGame
   return created;
 }
 
-export function joinGame(code: string, displayName: string): {
+export function joinGame(
+  code: string,
+  displayName: string,
+  avatarId?: string
+): {
   game: Game;
   sessionToken: string;
   playerId: string;
@@ -209,6 +267,7 @@ export function joinGame(code: string, displayName: string): {
     seat: game.players.length,
     displayName: name,
     isHost: false,
+    avatarId: normalizeAvatarId(avatarId),
     sessionToken,
     connected: true,
     lastSeenAt: Date.now(),
@@ -223,6 +282,71 @@ export function joinGame(code: string, displayName: string): {
 
   store.sessions.set(sessionToken, { gameId: game.id, playerId });
   return { game, sessionToken, playerId };
+}
+
+const SPECTATE_PHASES = new Set([
+  "ARRANGING",
+  "READY_TO_REVEAL",
+  "REVEALING",
+  "ROUND_SUMMARY",
+  "WAITING_NEXT_ROUND",
+  "HOST_DISCONNECTED",
+]);
+
+const MAX_SPECTATORS = 24;
+
+/** Join as a named spectator after the game has started (no seat). */
+export function joinAsSpectator(
+  code: string,
+  displayName: string,
+  avatarId?: string
+): {
+  game: Game;
+  sessionToken: string;
+  spectatorId: string;
+} {
+  const store = getStore();
+  const gameId = store.codeIndex.get(code.trim().toUpperCase());
+  if (!gameId) throw new GameError("INVALID_ROOM", "Room code not found");
+  const game = store.games.get(gameId)!;
+
+  if (!SPECTATE_PHASES.has(game.phase)) {
+    if (game.phase === "LOBBY" || game.phase === "READY_TO_START") {
+      throw new GameError("TOO_EARLY", "Spectators can join once the game has started");
+    }
+    throw new GameError("GAME_ENDED", "This game is over");
+  }
+
+  if (!game.spectators) game.spectators = [];
+  if (game.spectators.length >= MAX_SPECTATORS) {
+    throw new GameError("ROOM_FULL", "Spectator limit reached");
+  }
+
+  const name = displayName.trim();
+  if (!name) throw new GameError("INVALID_NAME", "Display name is required");
+  const taken = [
+    ...game.players.map((p) => p.displayName),
+    ...game.spectators.map((s) => s.displayName),
+  ].some((n) => n.toLowerCase() === name.toLowerCase());
+  if (taken) {
+    throw new GameError("DUPLICATE_NAME", "That display name is already taken in this room");
+  }
+
+  const spectatorId = randomUUID();
+  const sessionToken = newToken();
+  const spectator: Spectator = {
+    id: spectatorId,
+    displayName: name,
+    avatarId: normalizeAvatarId(avatarId),
+    sessionToken,
+    connected: true,
+    lastSeenAt: Date.now(),
+  };
+  game.spectators.push(spectator);
+  game.version++;
+
+  store.sessions.set(sessionToken, { gameId: game.id, spectatorId });
+  return { game, sessionToken, spectatorId };
 }
 
 /** Host starts a round: shuffle + deal atomically, then move to ARRANGING. */
@@ -635,10 +759,100 @@ export function heartbeat(token: string): Game {
   return game;
 }
 
-export function getGameByToken(token: string): { game: Game; player: ServerPlayer } {
-  const session = requireSession(token);
+export function getGameByToken(token: string): {
+  game: Game;
+  player: ServerPlayer | null;
+  spectator: Spectator | null;
+  actorId: string;
+  isSpectator: boolean;
+} {
+  const session = requireActor(token);
   tickAutoReveal(session.game);
-  return session;
+  return {
+    game: session.game,
+    player: session.player,
+    spectator: session.spectator,
+    actorId: session.actorId,
+    isSpectator: session.isSpectator,
+  };
+}
+
+const MAX_CHAT_LEN = 200;
+const MAX_CHAT_HISTORY = 120;
+
+/** Post a table-talk message. Visible to everyone in the room. */
+export function postChat(token: string, text: string): Game {
+  const { game, player, actorId, displayName, isSpectator } = requireActor(token);
+  if (player?.isBot) throw new GameError("FORBIDDEN", "Bots cannot chat");
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) throw new GameError("VALIDATION", "Message is empty");
+  if (cleaned.length > MAX_CHAT_LEN) {
+    throw new GameError("VALIDATION", `Message must be ${MAX_CHAT_LEN} characters or fewer`);
+  }
+  // Light spam guard: one message per 400ms per author.
+  const last = [...game.chat].reverse().find((m) => m.playerId === actorId);
+  if (last && Date.now() - last.createdAt < 400) {
+    throw new GameError("RATE", "Slow down");
+  }
+
+  if (!game.chat) game.chat = [];
+  game.chat.push({
+    id: randomUUID(),
+    playerId: actorId,
+    displayName,
+    text: cleaned,
+    createdAt: Date.now(),
+    isSpectator: isSpectator || undefined,
+  });
+  if (game.chat.length > MAX_CHAT_HISTORY) {
+    game.chat = game.chat.slice(-MAX_CHAT_HISTORY);
+  }
+  game.chatRevision = (game.chatRevision ?? 0) + 1;
+  return game;
+}
+
+const PRACTICE_BOT_LINES = [
+  "glhf",
+  "nice flop",
+  "hmm interesting",
+  "I'm ready",
+  "oops",
+  "gg that board",
+  "what a cooler",
+  "lets go",
+  "good luck",
+  "yikes",
+];
+
+/**
+ * Practice only: post a canned line as a CPU so you can preview opponent chat UI
+ * (seat bubbles, unread badge, left-aligned sheet messages).
+ */
+export function postPracticeBotChat(token: string): Game {
+  const { game } = requireSession(token);
+  const isPractice = game.practice || game.players.some((p) => p.isBot);
+  if (!isPractice) {
+    throw new GameError("FORBIDDEN", "CPU chat is only available in practice");
+  }
+  const bots = game.players.filter((p) => p.isBot);
+  if (!bots.length) throw new GameError("BAD_STATE", "No CPU seats");
+
+  const bot = bots[Math.floor(Math.random() * bots.length)]!;
+  const text = PRACTICE_BOT_LINES[Math.floor(Math.random() * PRACTICE_BOT_LINES.length)]!;
+
+  if (!game.chat) game.chat = [];
+  game.chat.push({
+    id: randomUUID(),
+    playerId: bot.id,
+    displayName: bot.displayName,
+    text,
+    createdAt: Date.now(),
+  });
+  if (game.chat.length > MAX_CHAT_HISTORY) {
+    game.chat = game.chat.slice(-MAX_CHAT_HISTORY);
+  }
+  game.chatRevision = (game.chatRevision ?? 0) + 1;
+  return game;
 }
 
 export function requireGameById(gameId: string): Game {

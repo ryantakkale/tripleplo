@@ -170,7 +170,7 @@ export function Arrange({
 
   // Center: three boards, each with your 4-card slot on the right.
   const center = (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       {BOARD_ORDER.map((b) => {
         const cards = sortCards(assign[b]);
         const full = cards.length === 4;
@@ -240,11 +240,12 @@ export function Arrange({
       ? `CANCEL (${countdown})`
       : "READY";
 
-  // Bottom: hand tray is a fixed height so READY never shifts as cards leave.
+  // Bottom: card size is always ~1/12 of the rail (same as a full hand).
+  // Remaining cards keep that size and stay centered — they don't stretch.
   const bottom = (
     <div>
       <div
-        className={`flex h-[5.5rem] flex-wrap content-center items-center justify-center gap-1.5 overflow-y-auto rounded-xl p-2 transition-colors ${
+        className={`flex w-full justify-center gap-1 rounded-xl px-0.5 py-0.5 transition-colors sm:gap-1.5 ${
           !you.ready && dragging && hoverTarget === "unassigned"
             ? "bg-white/5 ring-1 ring-inset ring-white/20"
             : ""
@@ -254,7 +255,7 @@ export function Arrange({
         onDrop={(e) => onDropTo(e, "unassigned")}
       >
         {you.ready ? (
-          <p className="px-2 text-center text-sm text-muted">
+          <p className="flex min-h-[3rem] w-full items-center justify-center px-2 text-center text-sm text-muted sm:min-h-[3.75rem]">
             {view.players.every((p) => p.ready)
               ? "Everyone is ready — the reveal is about to begin."
               : `Waiting for: ${view.players
@@ -264,28 +265,34 @@ export function Arrange({
           </p>
         ) : (
           unassigned.map((c) => (
-            <FlipCard
+            <div
               key={c}
-              card={c}
-              size="md"
-              selected={selected === c}
-              onClick={() => setSelected(selected === c ? null : c)}
-              draggable={!you.ready}
-              onDragStart={(e) => onCardDragStart(e, c)}
-              onDragEnd={onCardDragEnd}
-            />
+              className="aspect-[3/4] w-[calc((100%-2.75rem)/12)] shrink-0 sm:w-[calc((100%-4.125rem)/12)]"
+            >
+              <FlipCard
+                card={c}
+                size="fill"
+                selected={selected === c}
+                onClick={() => setSelected(selected === c ? null : c)}
+                draggable={!you.ready}
+                onDragStart={(e) => onCardDragStart(e, c)}
+                onDragEnd={onCardDragEnd}
+              />
+            </div>
           ))
         )}
       </div>
       {error && !you.ready && (
-        <p className="mt-2 text-center text-sm text-red-300">{error}</p>
+        <p className="mt-1 text-center text-sm text-red-300">{error}</p>
       )}
       <button
         type="button"
         className={
           you.ready
-            ? "mt-3 w-full cursor-default rounded-xl bg-yellow-700 px-4 py-3 text-lg font-semibold text-black/80"
-            : "mt-3 w-full rounded-xl bg-yellow-400 px-4 py-3 text-lg font-semibold text-black transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-yellow-400/35 disabled:text-black/45 disabled:hover:bg-yellow-400/35"
+            ? "mt-1.5 w-full cursor-default rounded-xl bg-yellow-700 px-4 py-2 text-base font-semibold text-black/80"
+            : countdown !== null
+              ? "mt-1.5 w-full rounded-xl bg-red-500 px-4 py-2 text-base font-semibold text-white transition-colors hover:bg-red-400"
+              : "mt-1.5 w-full rounded-xl bg-yellow-400 px-4 py-2 text-base font-semibold text-black transition-colors hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-yellow-400/35 disabled:text-black/45 disabled:hover:bg-yellow-400/35"
         }
         disabled={you.ready || (!allPlaced && countdown === null) || busy}
         onClick={handleReadyClick}
@@ -296,12 +303,14 @@ export function Arrange({
   );
 
   return (
-    <PokerTable
-      view={view}
-      center={center}
-      bottom={bottom}
-      seatVariant={seatVariant}
-      potLabel={`$${(view.boardValueCents / 100).toFixed(2)} per board`}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <PokerTable
+        view={view}
+        center={center}
+        bottom={bottom}
+        seatVariant={seatVariant}
+        potLabel={`$${(view.boardValueCents / 100).toFixed(2)} per board`}
+      />
+    </div>
   );
 }

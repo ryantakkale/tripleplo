@@ -18,12 +18,20 @@ export default function LandingPage() {
         </Link>
       </div>
 
-      <Link
-        href="/practice"
-        className="mt-3 text-sm text-muted underline-offset-4 hover:text-accent hover:underline"
-      >
-        Practice Mode (CPU) →
-      </Link>
+      <div className="mt-3 flex flex-col items-center gap-2 sm:flex-row sm:gap-4">
+        <Link
+          href="/spectate"
+          className="text-sm text-muted underline-offset-4 hover:text-accent hover:underline"
+        >
+          Spectate a game →
+        </Link>
+        <Link
+          href="/practice"
+          className="text-sm text-muted underline-offset-4 hover:text-accent hover:underline"
+        >
+          Practice Mode (CPU) →
+        </Link>
+      </div>
     </main>
   );
 }

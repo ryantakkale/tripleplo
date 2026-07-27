@@ -20,6 +20,7 @@ export async function POST(req: Request) {
         hostEmail: body.hostEmail,
         playerCount: body.playerCount,
         boardValueCents: BOARD_VALUE_CENTS[body.boardValueDollars],
+        avatarId: body.avatarId,
       });
       cookies().set(cookieName(game.id), sessionToken, sessionCookieOptions());
       return ok({ gameId: game.id, code: game.code });

@@ -19,15 +19,20 @@ export const api = {
     hostEmail: string;
     playerCount: 2 | 3;
     boardValueDollars: 1 | 2 | 4;
+    avatarId?: string;
   }) => post<{ gameId: string; code: string }>("/api/games", body),
 
-  joinGame: (body: { code: string; displayName: string }) =>
+  joinGame: (body: { code: string; displayName: string; avatarId?: string }) =>
     post<{ gameId: string; code: string }>("/api/games/join", body),
+
+  spectateGame: (body: { code: string; displayName: string; avatarId?: string }) =>
+    post<{ gameId: string; code: string }>("/api/games/spectate", body),
 
   practiceGame: (body: {
     hostDisplayName: string;
     playerCount: 2 | 3;
     boardValueDollars: 1 | 2 | 4;
+    avatarId?: string;
   }) => post<{ gameId: string; code: string }>("/api/games/practice", body),
 
   async state(gameId: string): Promise<{ view: GameView | null; unauthenticated?: boolean }> {
@@ -49,6 +54,10 @@ export const api = {
     post<{ view: GameView }>(`/api/games/${id}/next-round`, { idempotencyKey: key }),
   end: (id: string, key?: string) =>
     post<{ view: GameView }>(`/api/games/${id}/end`, { idempotencyKey: key }),
+  chat: (id: string, text: string) =>
+    post<{ view: GameView }>(`/api/games/${id}/chat`, { text }),
+  practiceBotChat: (id: string) =>
+    post<{ view: GameView }>(`/api/games/${id}/chat/practice-bot`),
 };
 
 export function fmt(cents: number): string {

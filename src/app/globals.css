@@ -65,7 +65,7 @@ body {
       inset 0 -8px 20px rgba(0, 0, 0, 0.5);
   }
   .seat-avatar {
-    @apply grid place-items-center rounded-full bg-gradient-to-br from-felt-700 to-felt-900
+    @apply grid place-items-center overflow-hidden rounded-full bg-gradient-to-br from-felt-700 to-felt-900
       ring-2 ring-white/10 text-lg font-bold text-accent-soft;
   }
   .chip-pill {
@@ -137,6 +137,27 @@ body {
 .animate-fadefloat { animation: fadefloat 2.6s ease-out forwards; }
 .animate-winnerGlow { animation: winnerGlow 1.4s ease-in-out infinite; }
 .animate-sweepPop { animation: sweepPop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.chat-seat-pop {
+  animation: chatSeatPop 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chat-seat-pop-left {
+  animation: chatSeatPopLeft 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chat-seat-pop-right {
+  animation: chatSeatPopRight 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes chatSeatPop {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes chatSeatPopLeft {
+  0% { opacity: 0; transform: translate(6px, -50%) scale(0.92); }
+  100% { opacity: 1; transform: translate(0, -50%) scale(1); }
+}
+@keyframes chatSeatPopRight {
+  0% { opacity: 0; transform: translate(-6px, -50%) scale(0.92); }
+  100% { opacity: 1; transform: translate(0, -50%) scale(1); }
+}
 .sweep-text {
   background: linear-gradient(90deg, #c9a24b 0%, #fff3d0 50%, #c9a24b 100%);
   background-size: 200% auto;

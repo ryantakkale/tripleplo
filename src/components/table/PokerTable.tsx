@@ -13,6 +13,7 @@ export function PokerTable({
   view,
   center,
   bottom,
+  overlay,
   seatVariant,
   seatEquity,
   seatDelta,
@@ -25,6 +26,8 @@ export function PokerTable({
   view: GameView;
   center: React.ReactNode;
   bottom?: React.ReactNode;
+  /** Centered on the felt (high-hand / sweep banners). */
+  overlay?: React.ReactNode;
   seatVariant?: (playerId: string) => SeatVariant;
   seatEquity?: (playerId: string) => number | null;
   seatDelta?: (playerId: string) => number | null;
@@ -37,7 +40,11 @@ export function PokerTable({
   const you = view.players.find((p) => p.isYou);
   const opponents = view.players.filter((p) => !p.isYou);
 
-  const renderSeat = (playerId: string, cardsBelow: boolean) => {
+  const renderSeat = (
+    playerId: string,
+    cardsBelow: boolean,
+    chatSide: "left" | "right"
+  ) => {
     const p = view.players.find((x) => x.id === playerId)!;
     return (
       <Seat
@@ -50,6 +57,7 @@ export function PokerTable({
         deltaKey={seatDeltaKey?.(p.id)}
         handName={seatHandName?.(p.id)}
         cardsBelow={cardsBelow}
+        chatSide={chatSide}
       >
         {seatCards?.(p.id)}
       </Seat>
@@ -57,43 +65,54 @@ export function PokerTable({
   };
 
   return (
-    <div className="table-rail rounded-[2.25rem] p-2.5 sm:p-3">
-      {/* overflow-visible so hand-name labels can extend past seat boxes */}
-      <div className="table-felt relative overflow-visible rounded-[1.85rem] px-3 pb-8 pt-8 sm:px-6">
-        {/* watermark */}
+    <div className="table-rail flex h-full min-h-0 flex-col rounded-[1.5rem] p-1.5 sm:rounded-[1.75rem] sm:p-2">
+      {/* Compact felt — packed height; hand docks to the bottom of the rail. */}
+      <div className="table-felt relative shrink-0 overflow-visible rounded-[1.2rem] px-2 pb-7 pt-7 sm:rounded-[1.4rem] sm:px-3 sm:pb-8 sm:pt-8">
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <span className="select-none text-6xl font-black tracking-tight text-white/[0.03] sm:text-8xl">
+          <span className="select-none text-4xl font-black tracking-tight text-white/[0.03] sm:text-6xl">
             TRIPLE PLO
           </span>
         </div>
 
-        {/* Opponents across the top */}
         <div
           className={`relative flex ${
-            opponents.length > 1 ? "justify-between px-2 sm:px-10" : "justify-center"
+            opponents.length > 1 ? "justify-between px-1 sm:px-6" : "justify-center"
           }`}
         >
-          {opponents.map((o) => renderSeat(o.id, true))}
+          {opponents.map((o, i) => {
+            const side =
+              opponents.length === 1 ? "left" : i === 0 ? "right" : "left";
+            return renderSeat(o.id, true, side);
+          })}
         </div>
 
-        {/* Community area */}
-        <div className="relative my-3 flex flex-col items-center gap-1.5">
+        <div className="relative mt-2 flex flex-col items-center gap-1 sm:mt-2.5">
           {potLabel && (
-            <div className="mb-1 rounded-full bg-black/45 px-4 py-1 text-xs font-semibold tracking-wide text-accent-soft">
+            <div className="rounded-full bg-black/45 px-3 py-0.5 text-[11px] font-semibold tracking-wide text-accent-soft">
               {potLabel}
             </div>
           )}
-          <div className="w-full max-w-full overflow-x-auto">
+          <div className="w-full max-w-full overflow-x-auto overflow-y-hidden">
             <div className="mx-auto w-max">{center}</div>
           </div>
         </div>
 
-        {/* You, anchored at the bottom of the felt */}
-        {you && <div className="relative flex justify-center">{renderSeat(you.id, false)}</div>}
+        {you && (
+          <div className="relative mt-2 flex justify-center sm:mt-2.5">
+            {renderSeat(you.id, false, "left")}
+          </div>
+        )}
+
+        {overlay && (
+          <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center p-4">
+            {overlay}
+          </div>
+        )}
       </div>
 
-      {/* Your hand / interactive area, on the rail below the felt */}
-      {bottom && <div className="px-1 pt-3 sm:px-3">{bottom}</div>}
+      {bottom ? <div className="min-h-0 flex-1" aria-hidden /> : null}
+
+      {bottom && <div className="shrink-0 px-0.5 pt-1.5 sm:px-1 sm:pt-2">{bottom}</div>}
     </div>
   );
 }

@@ -14,11 +14,13 @@ import { REVEAL_SEQUENCE } from "@/core/stateMachine";
 import { computeSettlement } from "@/core/settlement";
 import type { Card } from "@/core/cards";
 import type { Game } from "./types";
+import { normalizeAvatarId } from "@/lib/avatars";
 
 export interface PlayerView {
   id: string;
   seat: number;
   displayName: string;
+  avatarId: string;
   isHost: boolean;
   connected: boolean;
   ready: boolean;
@@ -87,6 +89,23 @@ export interface GameView {
   settlement: { payments: { from: string; to: string; amountCents: number }[] } | null;
   endedAt: number | null;
   emailStatus: Game["emailStatus"];
+  /** Practice-vs-CPU room. */
+  practice: boolean;
+  chat: {
+    id: string;
+    playerId: string;
+    displayName: string;
+    text: string;
+    createdAt: number;
+    isSpectator?: boolean;
+  }[];
+  chatRevision: number;
+  /** Named watchers currently in the room. */
+  spectatorCount: number;
+  /** True when this client is watching (no seat). */
+  youAreSpectator: boolean;
+  /** Your spectator id when watching. */
+  spectatorId: string | null;
 }
 
 function revealIndex(revealStep: string | null): number {
@@ -94,7 +113,11 @@ function revealIndex(revealStep: string | null): number {
   return REVEAL_SEQUENCE.indexOf(revealStep as (typeof REVEAL_SEQUENCE)[number]);
 }
 
-export function buildView(game: Game, viewerPlayerId: string | null): GameView {
+export function buildView(
+  game: Game,
+  viewerPlayerId: string | null,
+  viewerSpectatorId: string | null = null
+): GameView {
   const viewer = game.players.find((p) => p.id === viewerPlayerId) ?? null;
   const round = game.round;
   const summary = game.phase === "ROUND_SUMMARY" || game.phase === "GAME_ENDED";
@@ -103,6 +126,7 @@ export function buildView(game: Game, viewerPlayerId: string | null): GameView {
     id: p.id,
     seat: p.seat,
     displayName: p.displayName,
+    avatarId: normalizeAvatarId(p.avatarId),
     isHost: p.isHost,
     connected: p.connected,
     ready: round ? Boolean(round.ready[p.id]) : false,
@@ -267,5 +291,11 @@ export function buildView(game: Game, viewerPlayerId: string | null): GameView {
     settlement,
     endedAt: game.endedAt,
     emailStatus: game.emailStatus,
+    practice: !!(game.practice || game.players.some((p) => p.isBot)),
+    chat: game.chat ?? [],
+    chatRevision: game.chatRevision ?? 0,
+    spectatorCount: (game.spectators ?? []).length,
+    youAreSpectator: Boolean(viewerSpectatorId),
+    spectatorId: viewerSpectatorId,
   };
 }

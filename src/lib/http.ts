@@ -14,7 +14,9 @@ export function fail(error: unknown): NextResponse {
           ? 404
           : error.code === "CONFIG"
             ? 503
-            : 400;
+            : error.code === "RATE"
+              ? 429
+              : 400;
     return NextResponse.json({ ok: false, code: error.code, message: error.message }, { status });
   }
   if (error && typeof error === "object" && "issues" in error) {

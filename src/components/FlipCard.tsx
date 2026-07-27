@@ -24,6 +24,8 @@ const SIZES = {
   sm: "h-12 w-9 text-sm rounded-md",
   md: "h-[4.5rem] w-[3.25rem] text-base rounded-lg",
   lg: "h-24 w-[4.5rem] text-xl rounded-lg",
+  /** Fills parent — use inside a sized flex/grid cell. */
+  fill: "h-full w-full text-[clamp(0.7rem,0.55em+0.4vw,1.15rem)] rounded-[0.4rem]",
 } as const;
 
 /**
@@ -119,8 +121,8 @@ export function FlipCard({
 
   return (
     <div
-      className={`flip ${SIZES[size]} ${selected ? "-translate-y-2" : ""} transition-transform ${
-        interactive ? "cursor-pointer hover:-translate-y-1" : ""
+      className={`flip ${SIZES[size]} ${selected ? (size === "fill" || size === "xs" || size === "sm" ? "-translate-y-1" : "-translate-y-2") : ""} transition-transform ${
+        interactive ? "cursor-pointer hover:-translate-y-0.5" : ""
       } ${canDrag ? "cursor-grab active:cursor-grabbing" : ""} ${dragging ? "opacity-30" : ""}`}
       onClick={interactive ? onClick : undefined}
       draggable={canDrag}

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Mock — Mobile Arrange</title>
+  <style>
+    :root {
+      --felt: #0a1512;
+      --felt-mid: #12241d;
+      --accent: #c9a24b;
+      --ink: #e8ede9;
+      --muted: #8ba097;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      background: #0c0c0c;
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    h1 {
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+    }
+    .note {
+      max-width: 24rem;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: var(--muted);
+      text-align: center;
+    }
+    .phone {
+      width: 390px;
+      height: 844px;
+      border-radius: 2rem;
+      border: 3px solid #222;
+      background:
+        radial-gradient(1200px 600px at 50% -10%, #16302755, #0a1512 60%),
+        linear-gradient(180deg, #0c1a15, #0a1512);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 0.65rem 0.7rem 0.75rem;
+      gap: 0.45rem;
+    }
+    .hdr {
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .sub { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .opponents {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.15rem 0;
+    }
+    .seat {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.55rem;
+      border-radius: 0.65rem;
+      background: rgba(0,0,0,0.4);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      min-width: 0;
+    }
+    .seat.you {
+      border-color: rgba(250, 204, 21, 0.75);
+      background: rgba(250, 204, 21, 0.06);
+      align-self: center;
+    }
+    .seat.ready { border-color: #10b981; border-width: 2.5px; }
+    .av {
+      width: 1.45rem; height: 1.45rem; border-radius: 999px;
+      background: linear-gradient(145deg, #1c4636, #0a1812);
+      display: grid; place-items: center;
+      font-size: 0.7rem; font-weight: 700; color: var(--accent);
+      position: relative; flex-shrink: 0;
+    }
+    .dot {
+      position: absolute; right: -1px; bottom: -1px;
+      width: 0.4rem; height: 0.4rem; border-radius: 999px;
+      background: #22c55e; box-shadow: 0 0 0 1.5px #0a1512;
+    }
+    .seat-meta { min-width: 0; }
+    .seat-name { font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .seat-cash { font-size: 0.62rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .rail {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-radius: 1.1rem;
+      background: radial-gradient(120% 90% at 50% 34%, #1f5a44 0%, #164636 42%, #0e3327 72%, #0a2a20 100%);
+      box-shadow: inset 0 2px 24px rgba(0,0,0,0.45);
+      padding: 0.45rem 0.4rem 0.5rem;
+      gap: 0.35rem;
+      min-height: 0;
+    }
+    .pot {
+      align-self: center;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #e4c877;
+      background: rgba(0,0,0,0.45);
+      padding: 0.2rem 0.65rem;
+      border-radius: 999px;
+    }
+    .boards { display: flex; flex-direction: column; gap: 0.28rem; }
+    .board {
+      display: flex;
+      align-items: center;
+      gap: 0.28rem;
+      padding: 0.22rem 0.28rem;
+      border-radius: 0.55rem;
+      background: rgba(0,0,0,0.22);
+    }
+    .board.hot { outline: 1px solid rgba(201,162,75,0.45); background: rgba(201,162,75,0.08); }
+    .num {
+      width: 0.95rem; height: 0.95rem; flex-shrink: 0;
+      border-radius: 0.2rem; transform: rotate(45deg);
+      background: linear-gradient(145deg, #e4c877, #c9a24b);
+      display: grid; place-items: center;
+    }
+    .num span { transform: rotate(-45deg); font-size: 0.55rem; font-weight: 800; color: #0a1512; }
+    .flop, .slots { display: flex; gap: 0.18rem; align-items: center; }
+    .sep { width: 1px; height: 1.4rem; background: rgba(255,255,255,0.12); margin: 0 0.1rem; }
+    .card {
+      width: 1.55rem; height: 2.15rem;
+      border-radius: 0.28rem;
+      display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between;
+      padding: 0.12rem 0.14rem;
+      font-size: 0.55rem; font-weight: 700; line-height: 1;
+      color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    }
+    .card.s { background: #171717; }
+    .card.h { background: #dc2626; }
+    .card.d { background: #2563eb; }
+    .card.c { background: #059669; }
+    .card .pip { font-size: 0.7rem; align-self: center; }
+    .slot {
+      width: 1.55rem; height: 2.15rem;
+      border-radius: 0.28rem;
+      border: 1px dashed rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.15);
+    }
+    .slot.filled { border-style: solid; border-color: transparent; }
+    .you-wrap { display: flex; justify-content: center; padding-top: 0.15rem; }
+    .hand {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.28rem;
+      padding: 0.35rem 0.2rem 0.15rem;
+    }
+    .hand .card {
+      width: 100%;
+      height: 3.15rem;
+      font-size: 0.7rem;
+      border-radius: 0.4rem;
+      padding: 0.2rem;
+    }
+    .hand .card .pip { font-size: 1rem; }
+    .hand .card.sel { outline: 2px solid var(--accent); transform: translateY(-3px); }
+    .ready {
+      margin-top: auto;
+      width: 100%;
+      border: 0;
+      border-radius: 0.75rem;
+      padding: 0.7rem;
+      font-size: 1rem;
+      font-weight: 700;
+      background: #facc15;
+      color: #111;
+    }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; justify-content: center;
+      font-size: 0.72rem; color: var(--muted);
+    }
+    .legend b { color: var(--accent); font-weight: 600; }
+    .compare {
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; align-items: flex-start;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Mobile arrange — proposed</h1>
+    <p class="note" style="margin-top:0.5rem">No TOP/MID/BTM labels · no turn/river · flop + 4 slots per board · 12 cards in 3×4 · compact seats · everything above the fold</p>
+  </div>
+
+  <div class="phone" aria-label="Mobile arrange mock">
+    <div>
+      <div class="hdr">Triple PLO</div>
+      <div class="sub">Room 54C353 · $2.00/board · Round 1</div>
+    </div>
+
+    <div class="opponents">
+      <div class="seat ready">
+        <div class="av">C<span class="dot"></span></div>
+        <div class="seat-meta">
+          <div class="seat-name">CPU 1</div>
+          <div class="seat-cash">$0.00</div>
+        </div>
+      </div>
+      <div class="seat">
+        <div class="av">C<span class="dot"></span></div>
+        <div class="seat-meta">
+          <div class="seat-name">CPU 2</div>
+          <div class="seat-cash">$0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="pot">$2.00 per board</div>
+      <div class="boards">
+        <!-- Board 1 -->
+        <div class="board">
+          <div class="num"><span>1</span></div>
+          <div class="flop">
+            <div class="card s"><span>9♠</span><span class="pip">♠</span></div>
+            <div class="card s"><span>7♠</span><span class="pip">♠</span></div>
+            <div class="card h"><span>6♥</span><span class="pip">♥</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="slots">
+            <div class="slot"></div>
+            <div class="slot"></div>
+            <div class="slot"></div>
+            <div class="slot"></div>
+          </div>
+        </div>
+        <!-- Board 2 -->
+        <div class="board hot">
+          <div class="num"><span>2</span></div>
+          <div class="flop">
+            <div class="card d"><span>8♦</span><span class="pip">♦</span></div>
+            <div class="card h"><span>3♥</span><span class="pip">♥</span></div>
+            <div class="card c"><span>3♣</span><span class="pip">♣</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="slots">
+            <div class="card s filled slot"><span>A♠</span><span class="pip">♠</span></div>
+            <div class="card h filled slot"><span>K♥</span><span class="pip">♥</span></div>
+            <div class="slot"></div>
+            <div class="slot"></div>
+          </div>
+        </div>
+        <!-- Board 3 -->
+        <div class="board">
+          <div class="num"><span>3</span></div>
+          <div class="flop">
+            <div class="card h"><span>9♥</span><span class="pip">♥</span></div>
+            <div class="card h"><span>4♥</span><span class="pip">♥</span></div>
+            <div class="card c"><span>K♣</span><span class="pip">♣</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="slots">
+            <div class="slot"></div>
+            <div class="slot"></div>
+            <div class="slot"></div>
+            <div class="slot"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="you-wrap">
+        <div class="seat you">
+          <div class="av">R<span class="dot"></span></div>
+          <div class="seat-meta">
+            <div class="seat-name">Roy</div>
+            <div class="seat-cash">$0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hand">
+      <div class="card d sel"><span>A♦</span><span class="pip">♦</span></div>
+      <div class="card s"><span>Q♠</span><span class="pip">♠</span></div>
+      <div class="card c"><span>J♣</span><span class="pip">♣</span></div>
+      <div class="card h"><span>T♥</span><span class="pip">♥</span></div>
+      <div class="card c"><span>9♣</span><span class="pip">♣</span></div>
+      <div class="card d"><span>8♦</span><span class="pip">♦</span></div>
+      <div class="card s"><span>7♠</span><span class="pip">♠</span></div>
+      <div class="card h"><span>6♥</span><span class="pip">♥</span></div>
+      <div class="card c"><span>5♣</span><span class="pip">♣</span></div>
+      <div class="card d"><span>4♦</span><span class="pip">♦</span></div>
+    </div>
+
+    <button class="ready" type="button">READY</button>
+  </div>
+
+  <div class="legend">
+    <span><b>1 / 2 / 3</b> replaces TOP/MID/BTM</span>
+    <span><b>Flop + 4 slots</b> only (no turn/river)</span>
+    <span><b>10 cards left</b> in tray after placing 2</span>
+  </div>
+</body>
+</html>
