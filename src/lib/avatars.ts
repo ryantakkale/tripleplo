@@ -12,6 +12,7 @@ export const AVATARS = [
   { id: "Hop", label: "Hop" },
   { id: "Roy", label: "Roy" },
   { id: "Hound", label: "Hound" },
+  { id: "Corner", label: "Corner" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
